@@ -1,7 +1,7 @@
 import React from 'react';
 import {defaultSettings} from '../util/defaultSettings';
 import {SettingsSlider} from './SettingsSlider';
-import {estimatedTime} from '../util/time';
+import {estimatedTime, formatSeconds} from '../util/time';
 import styled from 'styled-components';
 import {compareObjects} from '../util/compareObjects';
 import {Button} from './Button';
@@ -117,7 +117,7 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, m
             <Bottom>
                 <Button onClick={() => resetSettings()} disabled={compareObjects(settings, defaultSettings) || disabled}>Default Settings</Button>{' '}
                 <div>
-                    {highScore === Infinity ? 'There is no high score for these settings.' : `Your high score for these settings: ${(highScore / MS_IN_SECOND).toFixed(3)} seconds`}<br />
+                    {highScore === Infinity ? 'There is no high score for these settings.' : `Your high score for these settings: ${formatSeconds(highScore / MS_IN_SECOND)}`}<br />
                     Estimated time for an expert player: {estimatedTime(settings)}
                 </div>
             </Bottom>

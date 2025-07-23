@@ -2,8 +2,7 @@ import {optimalMoves} from './optimalMoves';
 import {Settings} from './types';
 import {MS_IN_SECOND} from './constants';
 
-const getNumberAndUnit = (settings: Settings) => {
-    const seconds = optimalMoves(settings) / 3;
+const getNumberAndUnit = (seconds: number) => {
     if (seconds < 60) return {number: seconds, unit: 'seconds'};
 
     const minutes = (seconds / 60);
@@ -19,9 +18,13 @@ const getNumberAndUnit = (settings: Settings) => {
     return {number: years, unit: 'years'};
 };
 
-export const estimatedTime = (settings: Settings) => {
-    const {number, unit} = getNumberAndUnit(settings);
+export const formatSeconds = (seconds: number) => {
+    const { number, unit } = getNumberAndUnit(seconds);
     return `${number === Infinity ? '∞' : `${number.toFixed(2)} ${unit}`}`;
+};
+
+export const estimatedTime = (settings: Settings) => {
+    return formatSeconds(optimalMoves(settings) / 3);
 };
 
 export const timeDifference = (startTime: number, endTime: number | null) =>
