@@ -23,7 +23,6 @@ export const Game = () => {
     const [settingsShown, setSettingsShown] = useState(false);
     const [infoShown, setInfoShown] = useState(true);
     const [timeDifference, setTimeDifference] = useState(0);
-    const [, rerender] = useState(0);
 
     const stacksRef = useRef<HTMLDivElement>(null);
 
@@ -126,9 +125,6 @@ export const Game = () => {
             newStacks[numberKey].shift();
             setStacks(newStacks);
         }
-
-        // Don't allow multiple moves per render.
-        document.removeEventListener('keydown', onKeyDown);
     };
 
     const getWidth = (size: number) => {
@@ -141,19 +137,12 @@ export const Game = () => {
 
     const getColor = (size: number) => size / settings.disks;
 
-    const resize = () => rerender(x => x + 1);
-
     useEffect(() => {
         document.addEventListener('keydown', onKeyDown);
-        window.addEventListener('resize', resize);
         return () => {
             document.removeEventListener('keydown', onKeyDown);
-            window.removeEventListener('resize', resize);
         }
     });
-
-    // Resize once after initial page load and when settings change.
-    useEffect(resize, [settings]);
 
     // Load settings on initial page load.
     useEffect(() => {

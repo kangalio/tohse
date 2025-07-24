@@ -27,8 +27,7 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, m
     const highScore = getHighScore(settings);
     return (
         <Menu title="Settings">
-            {/* Without removeAllRanges, slides become disabled when selected https://stackoverflow.com/questions/69459333 */}
-            <table onMouseDown={() => window.getSelection()?.removeAllRanges()}>
+            <table>
                 <tbody>
                     <tr>
                         <td><SettingsSlider disabled={disabled} settings={settings} setSettings={setSettings} settingsKey="disks" resetGame={resetGame} min={1} max={30} /></td>
