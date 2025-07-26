@@ -22,15 +22,90 @@ const initialStacks = (settings: Settings) => {
     return stacks;
 }
 
+type GameState = {
+    state: "ready",
+} | {
+    state: "gameplay",
+    holding: {width: number, from: number} | null,
+    moves: Moves,
+    startTime: number,
+} | {
+    state: "finished",
+    moves: Moves,
+    startTime: number,
+    endTime: number,
+    timeDifference: number,
+};
+
+function undoInPlace(stacks: number[][], game: GameState) {
+    if (game.state !== "gameplay") return;
+
+    if (game.holding) {
+        stacks[game.holding.from].unshift(game.holding.width);
+        game.holding = null;
+    } else {
+        const lastMove = game.moves.pop();
+        if (!lastMove) return;
+        stacks[lastMove.from].unshift(stacks[lastMove.to][0]);
+        stacks[lastMove.to].shift();
+    }
+}
+
+function executeMoveKey(
+    game: Extract<GameState, {state: "gameplay"}>,
+    stacks: number[][],
+    settings: Settings,
+    key: string,
+) {
+    const now = Date.now();
+    if (game.moves.length === 0) game.startTime = now;
+    const moveTime = (now - game.startTime) / 1000;
+
+    const game2 = game;
+    const move = (from: number, to: number) => {
+        if (from >= settings.stacks || to >= settings.stacks) return;
+        if (!settings.illegalMoves && stacks[to][0] < stacks[from][0]) return;
+        const disk = stacks[from].shift();
+        if (!disk) return;
+
+        game2.moves.push({from, to, time: moveTime});
+        stacks[to].unshift(disk);
+    }
+    if (!game.holding) {
+        if (key === settings.keyBind21) move(1, 0);
+        else if (key === settings.keyBind12) move(0, 1);
+        else if (key === settings.keyBind13) move(0, 2);
+        else if (key === settings.keyBind31) move(2, 0);
+        else if (key === settings.keyBind32) move(2, 1);
+        else if (key === settings.keyBind23) move(1, 2);
+    }
+    const numberKey = Number(key) - 1;
+    if (isNaN(numberKey)) return;
+    if (numberKey < 0 || numberKey >= stacks.length) return;
+    if (game.holding) {
+        if (!settings.illegalMoves && stacks[numberKey][0] < game.holding.width) return;
+
+        stacks[numberKey].unshift(game.holding.width);
+        if (game.holding.from !== numberKey) {
+            game.moves.push({from: game.holding.from, to: numberKey, time: moveTime});
+        }
+        game.holding = null;
+    } else {
+        game.holding = stacks[numberKey][0] ? {
+            width: stacks[numberKey][0],
+            from: numberKey,
+        } : null;
+        if (game.moves.length === 0) game.startTime = Date.now();
+
+        stacks[numberKey].shift();
+    }
+}
+
 export const Game = () => {
-    const [holding, setHolding] = useState<{width: number, from: number} | null>(null);
-    const [moves, setMoves] = useState<Moves>([]);
-    const [startTime, setStartTime] = useState<number | null>(null);
-    const [endTime, setEndTime] = useState<number | null>(null);
+    let [game, setGame] = useState<GameState>({state: "ready"});
     const [settings, setSettings] = useLocalStorage("settings", defaultSettings);
     const [settingsShown, setSettingsShown] = useState(false);
     const [infoShown, setInfoShown] = useLocalStorage("infoShown", true);
-    const [timeDifference, setTimeDifference] = useState(0);
     const [replaysShown, setReplaysShown] = useState(false);
     const [replays, setReplays] = useLocalStorage<Replay[]>("replays", []);
     const [stacks, setStacks] = useState(initialStacks(settings));
@@ -39,11 +114,7 @@ export const Game = () => {
 
     const resetGame = useCallback((newSettings: Settings) => {
         setStacks(initialStacks(newSettings));
-
-        setHolding(null);
-        setStartTime(null);
-        setEndTime(null);
-        setMoves([]);
+        setGame({state: "ready"});
     }, []);
 
     const resetSettings = useCallback(() => {
@@ -52,28 +123,22 @@ export const Game = () => {
 
     const undo = useCallback(() => {
         const newStacks = [...stacks];
-
-        if (holding) {
-            newStacks[holding.from].unshift(holding.width);
-            setHolding(null);
-        } else {
-            if (moves.length === 0) return;
-            const newMoves = [...moves];
-            const lastMove = newMoves.splice(newMoves.length - 1, 1)[0];
-            newStacks[lastMove.from].unshift(stacks[lastMove.to][0]);
-            newStacks[lastMove.to].shift();
-            setMoves(newMoves);
-        }
-
+        const newGame = {...game};
+        undoInPlace(newStacks, newGame);
+        setGame(newGame);
         setStacks(newStacks);
-    }, [stacks, holding, moves]);
+    }, [stacks, game]);
 
     const checkForWin = (newMoves: Moves) => {
-        if (isWinning(stacks, settings)) {
+        if (isWinning(stacks, settings) && game.state === "gameplay") {
             const now = Date.now();
-            const score = now - (startTime ?? now);
-            setTimeDifference(setHighScore(settings, score));
-            setEndTime(now);
+            setGame({
+                state: "finished",
+                moves: newMoves,
+                startTime: game.startTime,
+                endTime: now,
+                timeDifference: setHighScore(settings, now - game.startTime),
+            });
             setReplays(prev => [
                 {
                     date: new Date(now).toISOString().slice(0, 10),
@@ -92,68 +157,24 @@ export const Game = () => {
             resetGame(settings);
             return;
         }
-
-        // All other keys from now are only valid during gameplay
-        if (endTime) return;
-
         if (key === settings.keyUndo) {
             undo();
             return;
         }
 
-        const now = Date.now();
-        const startTimeNonNull = (moves.length > 0 ? startTime : null) ?? now;
-        setStartTime(startTimeNonNull);
-        const moveTime = (now - startTimeNonNull) / 1000;
-
+        if (game.state === "finished") return;
+        const newGame: GameState = game.state !== "gameplay" ? {
+            state: "gameplay",
+            holding: null,
+            moves: [],
+            startTime: Date.now(),
+        } : {...game};
         const newStacks = [...stacks];
-        const move = (from: number, to: number) => {
-            if (from >= settings.stacks || to >= settings.stacks) return;
-            if (!settings.illegalMoves && stacks[to][0] < newStacks[from][0]) return;
-            const disk = newStacks[from].shift();
-            if (!disk) return;
+        executeMoveKey(newGame, newStacks, settings, key);
+        setGame(newGame);
+        setStacks(newStacks);
 
-            const newMoves = moves.concat([{from, to, time: moveTime}]);
-            setMoves(newMoves);
-            newStacks[to].unshift(disk);
-            setStacks(newStacks);
-            checkForWin(newMoves);
-        }
-        if (!holding) {
-            if (key === settings.keyBind21) move(1, 0);
-            else if (key === settings.keyBind12) move(0, 1);
-            else if (key === settings.keyBind13) move(0, 2);
-            else if (key === settings.keyBind31) move(2, 0);
-            else if (key === settings.keyBind32) move(2, 1);
-            else if (key === settings.keyBind23) move(1, 2);
-        }
-        const numberKey = Number(key) - 1;
-        if (isNaN(numberKey)) return;
-        if (numberKey < 0 || numberKey >= stacks.length) return;
-        if (holding) {
-            if (!settings.illegalMoves && stacks[numberKey][0] < holding.width) return;
-
-            const newStacks = [...stacks];
-            newStacks[numberKey].unshift(holding.width);
-            setStacks(newStacks);
-            setHolding(null);
-
-            if (holding.from !== numberKey) {
-                const newMoves = moves.concat([{from: holding.from, to: numberKey, time: moveTime}]);
-                setMoves(newMoves);
-                checkForWin(newMoves);
-            }
-        } else {
-            setHolding(stacks[numberKey][0] ? {
-                width: stacks[numberKey][0],
-                from: numberKey,
-            } : null);
-            if (moves.length === 0) setStartTime(Date.now());
-
-            const newStacks = [...stacks];
-            newStacks[numberKey].shift();
-            setStacks(newStacks);
-        }
+        checkForWin(newGame.moves);
     });
 
     const getWidth = (size: number) => {
@@ -193,9 +214,9 @@ export const Game = () => {
     return (
         <>
             <NavBar
-                startTime={startTime}
-                endTime={endTime}
-                numMoves={moves.length}
+                startTime={game.state !== "ready" ? game.startTime : null}
+                endTime={game.state === "finished" ? game.endTime : null}
+                numMoves={game.state !== "ready" ? game.moves.length : 0}
                 optimalMoves={optimalMoves(settings)}
                 settings={settings}
                 undo={undo}
@@ -209,15 +230,15 @@ export const Game = () => {
                 setSettings={setSettings}
                 resetSettings={resetSettings}
                 resetGame={resetGame}
-                moves={moves}
-                endTime={endTime}
+                moves={game.state !== "ready" ? game.moves : []}
+                endTime={game.state === "finished" ? game.endTime : null}
                 close={() => setSettingsShown(false)} />}
             {replaysShown && <ReplaysMenu replays={replays} startReplay={startReplay} />}
-            {startTime && endTime && <Win moves={moves} settings={settings} startTime={startTime} endTime={endTime} timeDifference={timeDifference} />}
+            {game.state === "finished" && <Win moves={game.moves} settings={settings} startTime={game.startTime} endTime={game.endTime} timeDifference={game.timeDifference} />}
 
             {settings.blindfold && <Blindfold>[blindfold enabled]</Blindfold>}
             <Main blindfold={settings.blindfold}>
-                {holding && <Disk $width={getWidth(holding.width)} $height={diskHeight} $color={getColor(holding.width)} $holding>{settings.diskNumbers ? holding.width : <>&nbsp;</>}</Disk>}
+                {game.state === "gameplay" && game.holding && <Disk $width={getWidth(game.holding.width)} $height={diskHeight} $color={getColor(game.holding.width)} $holding>{settings.diskNumbers ? game.holding.width : <>&nbsp;</>}</Disk>}
                 <Stacks ref={stacksRef}>
                     {stacks.map((stack, key) =>
                         <Stack
