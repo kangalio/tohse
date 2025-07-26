@@ -118,9 +118,10 @@ export const Game = () => {
     const stacksRef = useRef<HTMLDivElement>(null);
 
     const resetGame = useCallback((newSettings: Settings) => {
+        if (game.state === "replay") game.abortController.abort();
         setStacks(initialStacks(newSettings));
         setGame({state: "ready"});
-    }, []);
+    }, [game]);
 
     const resetSettings = useCallback(() => {
         setSettings(defaultSettings);
@@ -200,6 +201,10 @@ export const Game = () => {
             let lastMoveTime = 0;
             for (const move of replay.moves) {
                 await abortableSleep(move.time - lastMoveTime, newGame.abortController.signal);
+                if (newGame.abortController.signal.aborted) {
+                    resetGame(settings);
+                    return;
+                }
                 lastMoveTime = move.time;
 
                 newStacks = [...newStacks];
@@ -219,6 +224,11 @@ export const Game = () => {
             });
         })();
     };
+    const stopReplay = () => {
+        if (game.state !== "replay") return;
+        game.abortController.abort();
+        resetGame(settings);
+    }
 
     const getColor = (size: number) => size / settings.disks;
 
@@ -255,7 +265,7 @@ export const Game = () => {
                 resetGame={resetGame}
                 disabled={game.state === "gameplay" || game.state === "replay"}
                 close={() => setSettingsShown(false)} />}
-            {replaysShown && <ReplaysMenu replays={replays} startReplay={startReplay} />}
+            {replaysShown && <ReplaysMenu replays={replays} clickable={game.state === "replay" ? { "replayInProgress": true, stopReplay } : { "replayInProgress": false, startReplay }} />}
             {game.state === "finished" && <Win moves={game.moves} settings={settings} seconds={game.seconds} timeDifference={game.timeDifference} />}
 
             {settings.blindfold && <Blindfold>[blindfold enabled]</Blindfold>}
