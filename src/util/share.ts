@@ -1,19 +1,17 @@
 import {isMobileOrTablet} from './isMobileOrTablet';
 import {Settings} from './types';
-import {timeDifference} from './time';
-import {MS_IN_SECOND} from './constants';
 import {optimalMoves} from './optimalMoves';
 
-export const share = async (startTime: number, endTime: number, numMoves: number, numOptimalMoves: number, settings: Settings) =>
+export const share = async (seconds: number, numMoves: number, numOptimalMoves: number, settings: Settings) =>
     await shareText(
         '⬛⬛🟩⬛⬛' +
         '\n⬛🟦🟦🟦⬛' +
         '\n🟥🟥🟥🟥🟥' +
         '\nTowers of Hanoi - Speedrun Edition Result:' +
         `\n📚 ${settings.disks} disks` +
-        `\n⌛ ${timeDifference(startTime, endTime)} seconds` +
+        `\n⌛ ${seconds.toFixed(3)} seconds` +
         `\n♟️ ${numMoves}/${numOptimalMoves} moves` +
-        `\n🚀 ${(MS_IN_SECOND * optimalMoves(settings) / (endTime - startTime)).toFixed(2)} optimal moves/second` +
+        `\n🚀 ${(optimalMoves(settings) / seconds).toFixed(2)} optimal moves/second` +
         (numMoves === numOptimalMoves ? '\n✨ Optimal solution' : '') +
         (settings.blindfold ? '\n🙈 Blindfolded' : '') +
         (settings.illegalMoves ? '\n🚨 Illegal moves' : '') +

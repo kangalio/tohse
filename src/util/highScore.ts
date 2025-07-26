@@ -4,11 +4,11 @@ const makeKey = (settings: Settings) => `HighScore/${settings.disks}/${settings.
 
 export const getHighScore = (settings: Settings) => {
     const score = localStorage.getItem(makeKey(settings));
-    return score ? parseInt(score) : Infinity;
+    return score ? parseInt(score) / 1000 : Infinity;
 };
 
 export const setHighScore = (settings: Settings, score: number) => {
     const diff = score - getHighScore(settings);
-    if (diff < 0) localStorage.setItem(makeKey(settings), score.toString());
+    if (diff < 0) localStorage.setItem(makeKey(settings), (score * 1000).toString());
     return diff;
 };

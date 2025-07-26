@@ -7,13 +7,14 @@ import styled from 'styled-components';
 import {NavBar} from './NavBar';
 import {optimalMoves} from '../util/optimalMoves';
 import {Win} from './Win';
-import {setHighScore} from '../util/highScore';
+import {getHighScore, setHighScore} from '../util/highScore';
 import {Info} from './Info';
 import {Moves, Replay, Settings} from '../util/types';
 import {isWinning} from '../util/isWinning';
 import {MAX_DISK_HEIGHT, MIN_DISK_WIDTH_INCREMENT, TOP_DISK_MARGIN} from '../util/constants';
 import { ReplaysMenu } from './ReplaysMenu';
 import { useEventListener, useLocalStorage } from '../util/customHooks';
+import { abortableSleep } from '../util/abortableSleep';
 
 const initialStacks = (settings: Settings) => {
     const stacks = [];
@@ -32,9 +33,13 @@ type GameState = {
 } | {
     state: "finished",
     moves: Moves,
-    startTime: number,
-    endTime: number,
+    seconds: number,
     timeDifference: number,
+} | {
+    state: "replay",
+    moves: Moves,
+    startTime: number,
+    abortController: AbortController,
 };
 
 function undoInPlace(stacks: number[][], game: GameState) {
@@ -102,7 +107,7 @@ function executeMoveKey(
 }
 
 export const Game = () => {
-    let [game, setGame] = useState<GameState>({state: "ready"});
+    const [game, setGame] = useState<GameState>({state: "ready"});
     const [settings, setSettings] = useLocalStorage("settings", defaultSettings);
     const [settingsShown, setSettingsShown] = useState(false);
     const [infoShown, setInfoShown] = useLocalStorage("infoShown", true);
@@ -135,9 +140,8 @@ export const Game = () => {
             setGame({
                 state: "finished",
                 moves: newMoves,
-                startTime: game.startTime,
-                endTime: now,
-                timeDifference: setHighScore(settings, now - game.startTime),
+                seconds: (now - game.startTime) / 1000,
+                timeDifference: setHighScore(settings, (now - game.startTime) / 1000),
             });
             setReplays(prev => [
                 {
@@ -187,18 +191,32 @@ export const Game = () => {
 
     const startReplay = (replay: Replay) => {
         setSettings(replay.settings);
-        resetGame(replay.settings);
+        let newStacks = initialStacks(replay.settings);
+        setStacks(newStacks);
+        const abortController = new AbortController();
+        const newGame: GameState = { state: "replay", moves: [], startTime: Date.now(), abortController };
+        setGame(newGame);
         (async () => {
             let lastMoveTime = 0;
             for (const move of replay.moves) {
-                const sleepMs = (move.time - lastMoveTime) * 1000;
+                await abortableSleep(move.time - lastMoveTime, newGame.abortController.signal);
                 lastMoveTime = move.time;
-                await new Promise(resolve => setTimeout(resolve, sleepMs));
 
-                const newStacks = [...stacks];
+                newStacks = [...newStacks];
                 newStacks[move.to].unshift(newStacks[move.from].shift()!);
                 setStacks(newStacks);
+
+                newGame.moves.push(move);
+                setGame(newGame);
             }
+
+            let seconds = replay.moves[replay.moves.length - 1].time;
+            setGame({
+                state: "finished",
+                moves: replay.moves,
+                seconds,
+                timeDifference: seconds - getHighScore(replay.settings),
+            });
         })();
     };
 
@@ -214,8 +232,13 @@ export const Game = () => {
     return (
         <>
             <NavBar
-                startTime={game.state !== "ready" ? game.startTime : null}
-                endTime={game.state === "finished" ? game.endTime : null}
+                time={
+                    game.state === "ready" ? {state: "not started"} :
+                    game.state === "gameplay" ? {state: "running", startTime: game.startTime} :
+                    game.state === "replay" ? {state: "running", startTime: game.startTime} :
+                    game.state === "finished" ? {state: "finished", seconds: game.seconds} :
+                    (() => { throw new Error("unreachable"); })()
+                }
                 numMoves={game.state !== "ready" ? game.moves.length : 0}
                 optimalMoves={optimalMoves(settings)}
                 settings={settings}
@@ -230,11 +253,10 @@ export const Game = () => {
                 setSettings={setSettings}
                 resetSettings={resetSettings}
                 resetGame={resetGame}
-                moves={game.state !== "ready" ? game.moves : []}
-                endTime={game.state === "finished" ? game.endTime : null}
+                disabled={game.state === "gameplay" || game.state === "replay"}
                 close={() => setSettingsShown(false)} />}
             {replaysShown && <ReplaysMenu replays={replays} startReplay={startReplay} />}
-            {game.state === "finished" && <Win moves={game.moves} settings={settings} startTime={game.startTime} endTime={game.endTime} timeDifference={game.timeDifference} />}
+            {game.state === "finished" && <Win moves={game.moves} settings={settings} seconds={game.seconds} timeDifference={game.timeDifference} />}
 
             {settings.blindfold && <Blindfold>[blindfold enabled]</Blindfold>}
             <Main blindfold={settings.blindfold}>

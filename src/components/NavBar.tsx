@@ -7,8 +7,9 @@ import {Settings} from '../util/types';
 import {share} from '../util/share';
 
 interface Props {
-    startTime: number | null;
-    endTime: number | null;
+    time: {state: "not started"}
+        | {state: "running", startTime: number}
+        | {state: "finished", seconds: number};
     numMoves: number;
     optimalMoves: number;
     settings: Settings;
@@ -19,7 +20,7 @@ interface Props {
     toggleInfo: () => void;
 }
 
-export const NavBar = ({startTime, endTime, numMoves, optimalMoves, settings, undo, reset, toggleSettings, toggleReplays, toggleInfo}: Props) => {
+export const NavBar = ({time, numMoves, optimalMoves, settings, undo, reset, toggleSettings, toggleReplays, toggleInfo}: Props) => {
     const [copied, setCopied] = useState(false);
 
     return (
@@ -27,15 +28,15 @@ export const NavBar = ({startTime, endTime, numMoves, optimalMoves, settings, un
             <img src={icon} alt="Logo" width="50px"/>
             <h1>Towers of Hanoi - Speedrun Edition</h1>
             <Controls>
-                {startTime && endTime &&
-                    <Button onClick={() => share(startTime, endTime, numMoves, optimalMoves, settings).then(() => {
+                {time.state === "finished" &&
+                    <Button onClick={() => share(time.seconds, numMoves, optimalMoves, settings).then(() => {
                         setCopied(true);
                         setTimeout(() => setCopied(false), 1000);
                     })} disabled={copied}>
                         {copied ? 'Copied!' : 'Share'}
                     </Button>}
                 <Info>
-                    <Timer startTime={startTime} endTime={endTime}/><br/>
+                    <Timer time={time}/><br/>
                     Moves: {numMoves}/{optimalMoves === Infinity ? '∞' : optimalMoves} optimal
                 </Info>
                 <Button onClick={undo}>Undo&nbsp;({settings.keyUndo})</Button>

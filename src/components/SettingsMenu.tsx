@@ -1,4 +1,3 @@
-import React from 'react';
 import {defaultSettings} from '../util/defaultSettings';
 import {SettingsSlider} from './SettingsSlider';
 import {estimatedTime, formatSeconds} from '../util/time';
@@ -7,23 +6,19 @@ import {compareObjects} from '../util/compareObjects';
 import {Button} from './Button';
 import {Menu} from './Menu';
 import {KeyBind} from './KeyBind';
-import {Moves, Settings} from '../util/types';
+import {Settings} from '../util/types';
 import {getHighScore} from '../util/highScore';
-import {MS_IN_SECOND} from '../util/constants';
 
 interface Props {
     settings: Settings;
     setSettings: (settings: Settings) => void;
     resetGame: (settings: Settings) => void;
     resetSettings: () => void;
-    moves: Moves;
-    endTime: number | null;
+    disabled: boolean;
     close: () => void;
 }
 
-export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, moves, endTime, close}: Props) => {
-    const disabled = moves.length > 0 && !endTime;
-
+export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, disabled, close}: Props) => {
     const highScore = getHighScore(settings);
     return (
         <Menu title="Settings">
@@ -116,7 +111,7 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, m
             <Bottom>
                 <Button onClick={() => resetSettings()} disabled={compareObjects(settings, defaultSettings) || disabled}>Default Settings</Button>{' '}
                 <div>
-                    {highScore === Infinity ? 'There is no high score for these settings.' : `Your high score for these settings: ${formatSeconds(highScore / MS_IN_SECOND)}`}<br />
+                    {highScore === Infinity ? 'There is no high score for these settings.' : `Your high score for these settings: ${formatSeconds(highScore)}`}<br />
                     Estimated time for an expert player: {estimatedTime(settings)}
                 </div>
             </Bottom>

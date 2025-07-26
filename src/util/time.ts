@@ -1,6 +1,5 @@
 import {optimalMoves} from './optimalMoves';
 import {Settings} from './types';
-import {MS_IN_SECOND} from './constants';
 
 const getNumberAndUnit = (seconds: number) => {
     if (seconds < 60) return {number: seconds, unit: 'seconds'};
@@ -26,6 +25,3 @@ export const formatSeconds = (seconds: number) => {
 export const estimatedTime = (settings: Settings) => {
     return formatSeconds(optimalMoves(settings) / 3);
 };
-
-export const timeDifference = (startTime: number, endTime: number | null) =>
-    (((endTime ?? Date.now()) - startTime) / MS_IN_SECOND).toFixed(3);
