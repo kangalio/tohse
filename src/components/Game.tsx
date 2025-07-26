@@ -13,10 +13,16 @@ import {Moves, Replay, Settings} from '../util/types';
 import {isWinning} from '../util/isWinning';
 import {MAX_DISK_HEIGHT, MIN_DISK_WIDTH_INCREMENT, TOP_DISK_MARGIN} from '../util/constants';
 import { ReplaysMenu } from './ReplaysMenu';
-import { useLocalStorage } from '../util/useLocalStorage';
+import { useEventListener, useLocalStorage } from '../util/customHooks';
+
+const initialStacks = (settings: Settings) => {
+    const stacks = [];
+    for (let i = 0; i < settings.stacks; ++i) stacks.push([]);
+    stacks[Math.min(settings.startStack, settings.stacks) - 1] = Array.from({length: settings.disks}, (_, i) => i + 1);
+    return stacks;
+}
 
 export const Game = () => {
-    const [stacks, setStacks] = useState([[0]]);
     const [holding, setHolding] = useState<{width: number, from: number} | null>(null);
     const [moves, setMoves] = useState<Moves>([]);
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -27,14 +33,12 @@ export const Game = () => {
     const [timeDifference, setTimeDifference] = useState(0);
     const [replaysShown, setReplaysShown] = useState(false);
     const [replays, setReplays] = useLocalStorage<Replay[]>("replays", []);
+    const [stacks, setStacks] = useState(initialStacks(settings));
 
     const stacksRef = useRef<HTMLDivElement>(null);
 
     const resetGame = useCallback((newSettings: Settings) => {
-        const stacks = [];
-        for (let i = 0; i < newSettings.stacks; ++i) stacks.push([]);
-        stacks[Math.min(newSettings.startStack, newSettings.stacks) - 1] = Array.from({length: newSettings.disks}, (_, i) => i + 1);
-        setStacks(stacks);
+        setStacks(initialStacks(newSettings));
 
         setHolding(null);
         setStartTime(null);
@@ -82,13 +86,16 @@ export const Game = () => {
         }
     };
 
-    const onKeyDown = (event: KeyboardEvent) => {
+    useEventListener('keydown', (event: KeyboardEvent) => {
         const key = event.key.toLowerCase();
         if (key === settings.keyReset) {
             resetGame(settings);
             return;
         }
+
+        // All other keys from now are only valid during gameplay
         if (endTime) return;
+
         if (key === settings.keyUndo) {
             undo();
             return;
@@ -143,7 +150,7 @@ export const Game = () => {
             newStacks[numberKey].shift();
             setStacks(newStacks);
         }
-    };
+    });
 
     const getWidth = (size: number) => {
         if (!stacksRef.current) return 0;
@@ -153,16 +160,13 @@ export const Game = () => {
             : size * MIN_DISK_WIDTH_INCREMENT;
     };
 
+    const startReplay = (replay: Replay) => {
+        setSettings(replay.settings);
+        resetGame(replay.settings);
+    };
+
     const getColor = (size: number) => size / settings.disks;
 
-    useEffect(() => {
-        document.addEventListener('keydown', onKeyDown);
-        return () => {
-            document.removeEventListener('keydown', onKeyDown);
-        }
-    });
-
-    // Load settings on initial page load.
     useEffect(() => {
         resetGame(settings);
     }, []);
@@ -192,7 +196,7 @@ export const Game = () => {
                 moves={moves}
                 endTime={endTime}
                 close={() => setSettingsShown(false)} />}
-            {replaysShown && <ReplaysMenu replays={replays} />}
+            {replaysShown && <ReplaysMenu replays={replays} startReplay={startReplay} />}
             {startTime && endTime && <Win moves={moves} settings={settings} startTime={startTime} endTime={endTime} timeDifference={timeDifference} />}
 
             {settings.blindfold && <Blindfold>[blindfold enabled]</Blindfold>}

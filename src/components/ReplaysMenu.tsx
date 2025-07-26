@@ -5,9 +5,10 @@ import { Replay } from '../util/types';
 
 interface Props {
     replays: Array<Replay>;
+    startReplay: (replay: Replay) => void;
 }
 
-export const ReplaysMenu = ({replays}: Props) => {
+export const ReplaysMenu = ({replays, startReplay}: Props) => {
     return (
         <Menu title="Replays">
             <ReplayTable>
@@ -35,9 +36,7 @@ export const ReplaysMenu = ({replays}: Props) => {
                                 {(replay.moves.length / replay.moves[replay.moves.length - 1].time).toFixed(1)} moves/s
                             </td>
                             <td>
-                                <Button onClick={() => {
-                                    alert("todo");
-                                }}>Replay</Button>
+                                <Button onClick={() => startReplay(replay)}>Replay</Button>
                             </td>
                         </tr>
                     ))}
