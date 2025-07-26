@@ -69,7 +69,7 @@ function executeMoveKey(
         state: "gameplay",
         holding: null,
         moves: [],
-        startTime: Date.now(),
+        startTime: now,
     } satisfies GameState;
 
     const move = (from: number, to: number) => {
@@ -148,21 +148,21 @@ export const Game = () => {
 
     const checkForWin = (newMoves: Moves) => {
         if (isWinning(stacks, settings) && game.state === "gameplay") {
-            const now = Date.now();
+            let seconds = newMoves[newMoves.length - 1].time;
             setGame({
                 state: "finished",
                 moves: newMoves,
-                seconds: (now - game.startTime) / 1000,
-                timeDifference: setHighScore(settings, (now - game.startTime) / 1000),
+                seconds,
+                timeDifference: setHighScore(settings, seconds),
             });
-            setReplays(prev => [
+            setReplays([
                 {
-                    date: new Date(now).toISOString().slice(0, 10),
-                    time: new Date(now).toISOString().slice(11, 19),
+                    date: new Date().toISOString().slice(0, 10),
+                    time: new Date().toISOString().slice(11, 19),
                     settings: settings,
                     moves: newMoves,
                 },
-                ...prev,
+                ...replays,
             ]);
         }
     };

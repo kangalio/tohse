@@ -1,5 +1,7 @@
 import {Settings} from './types';
 
+// High scores are stored as milliseconds for backwards compatibility
+
 const makeKey = (settings: Settings) => `HighScore/${settings.disks}/${settings.stacks}/${settings.illegalMoves}/${settings.blindfold}/${settings.startStack === settings.endStack}`;
 
 export const getHighScore = (settings: Settings) => {
