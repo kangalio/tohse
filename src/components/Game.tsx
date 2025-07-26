@@ -9,9 +9,11 @@ import {optimalMoves} from '../util/optimalMoves';
 import {Win} from './Win';
 import {setHighScore} from '../util/highScore';
 import {Info} from './Info';
-import {Moves, Settings} from '../util/types';
+import {Moves, Replay, Settings} from '../util/types';
 import {isWinning} from '../util/isWinning';
 import {MAX_DISK_HEIGHT, MIN_DISK_WIDTH_INCREMENT, TOP_DISK_MARGIN} from '../util/constants';
+import { ReplaysMenu } from './ReplaysMenu';
+import { useLocalStorage } from '../util/useLocalStorage';
 
 export const Game = () => {
     const [stacks, setStacks] = useState([[0]]);
@@ -19,10 +21,12 @@ export const Game = () => {
     const [moves, setMoves] = useState<Moves>([]);
     const [startTime, setStartTime] = useState<number | null>(null);
     const [endTime, setEndTime] = useState<number | null>(null);
-    const [settings, setSettings] = useState(defaultSettings);
+    const [settings, setSettings] = useLocalStorage("settings", defaultSettings);
     const [settingsShown, setSettingsShown] = useState(false);
-    const [infoShown, setInfoShown] = useState(true);
+    const [infoShown, setInfoShown] = useLocalStorage("infoShown", true);
     const [timeDifference, setTimeDifference] = useState(0);
+    const [replaysShown, setReplaysShown] = useState(false);
+    const [replays, setReplays] = useLocalStorage<Replay[]>("replays", []);
 
     const stacksRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +44,7 @@ export const Game = () => {
 
     const resetSettings = useCallback(() => {
         setSettings(defaultSettings);
-        resetGame(defaultSettings);
-    }, [resetGame]);
+    }, [setSettings]);
 
     const undo = useCallback(() => {
         const newStacks = [...stacks];
@@ -64,8 +67,18 @@ export const Game = () => {
     const checkForWin = () => {
         if (isWinning(stacks, settings)) {
             const now = Date.now();
-            setTimeDifference(setHighScore(settings, now - (startTime ?? now)));
+            const score = now - (startTime ?? now);
+            setTimeDifference(setHighScore(settings, score));
             setEndTime(now);
+            setReplays(prev => [
+                {
+                    date: new Date(now).toISOString().slice(0, 10),
+                    time: new Date(now).toISOString().slice(11, 19),
+                    settings: settings,
+                    moves: moves,
+                },
+                ...prev,
+            ]);
         }
     };
 
@@ -81,14 +94,19 @@ export const Game = () => {
             return;
         }
 
+        const now = Date.now();
+        const startTimeNonNull = (moves.length > 0 ? startTime : null) ?? now;
+        setStartTime(startTimeNonNull);
+        const moveTime = (now - startTimeNonNull) / 1000;
+
         const newStacks = [...stacks];
         const move = (from: number, to: number) => {
             if (from >= settings.stacks || to >= settings.stacks) return;
             if (!settings.illegalMoves && stacks[to][0] < newStacks[from][0]) return;
             const disk = newStacks[from].shift();
             if (!disk) return;
-            if (moves.length === 0) setStartTime(Date.now());
-            setMoves(moves.concat([{from, to}]));
+
+            setMoves(moves.concat([{from, to, time: moveTime}]));
             newStacks[to].unshift(disk);
             setStacks(newStacks);
             checkForWin();
@@ -112,7 +130,7 @@ export const Game = () => {
             setStacks(newStacks);
             setHolding(null);
 
-            if (holding.from !== numberKey) setMoves(moves.concat([{from: holding.from, to: numberKey}]));
+            if (holding.from !== numberKey) setMoves(moves.concat([{from: holding.from, to: numberKey, time: moveTime}]));
             checkForWin();
         } else {
             setHolding(stacks[numberKey][0] ? {
@@ -146,21 +164,8 @@ export const Game = () => {
 
     // Load settings on initial page load.
     useEffect(() => {
-        const rawSettings = window.localStorage.getItem('settings');
-        if (rawSettings) {
-            const newSettings = JSON.parse(rawSettings);
-            setInfoShown(false);
-            setSettings(newSettings);
-            resetGame(newSettings);
-            return;
-        }
-        resetGame(defaultSettings);
-    }, [resetGame]);
-
-    // Save settings on change.
-    useEffect(() => {
-        window.localStorage.setItem('settings', JSON.stringify(settings));
-    }, [settings]);
+        resetGame(settings);
+    }, []);
 
     const stackWidth = 100 / settings.stacks;
     const diskHeight = Math.min((window.innerHeight - TOP_DISK_MARGIN) / settings.disks, MAX_DISK_HEIGHT);
@@ -176,6 +181,7 @@ export const Game = () => {
                 undo={undo}
                 reset={resetGame}
                 toggleSettings={() => setSettingsShown(!settingsShown)}
+                toggleReplays={() => setReplaysShown(!replaysShown)}
                 toggleInfo={() => setInfoShown(!infoShown)} />
             {infoShown && <Info onClose={() => setInfoShown(false)} settings={settings} />}
             {settingsShown && <SettingsMenu
@@ -186,6 +192,7 @@ export const Game = () => {
                 moves={moves}
                 endTime={endTime}
                 close={() => setSettingsShown(false)} />}
+            {replaysShown && <ReplaysMenu replays={replays} />}
             {startTime && endTime && <Win moves={moves} settings={settings} startTime={startTime} endTime={endTime} timeDifference={timeDifference} />}
 
             {settings.blindfold && <Blindfold>[blindfold enabled]</Blindfold>}

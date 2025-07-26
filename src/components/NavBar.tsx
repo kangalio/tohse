@@ -15,10 +15,11 @@ interface Props {
     undo: () => void;
     reset: (settings: Settings) => void;
     toggleSettings: () => void;
+    toggleReplays: () => void;
     toggleInfo: () => void;
 }
 
-export const NavBar = ({startTime, endTime, numMoves, optimalMoves, settings, undo, reset, toggleSettings, toggleInfo}: Props) => {
+export const NavBar = ({startTime, endTime, numMoves, optimalMoves, settings, undo, reset, toggleSettings, toggleReplays, toggleInfo}: Props) => {
     const [copied, setCopied] = useState(false);
 
     return (
@@ -39,6 +40,7 @@ export const NavBar = ({startTime, endTime, numMoves, optimalMoves, settings, un
                 </Info>
                 <Button onClick={undo}>Undo&nbsp;({settings.keyUndo})</Button>
                 <Button onClick={() => reset(settings)}>Reset&nbsp;({settings.keyReset})</Button>
+                <Button onClick={toggleReplays}>Replays</Button>
                 <Button onClick={toggleSettings}>Settings</Button>
                 <Button onClick={toggleInfo}>?</Button>
             </Controls>
