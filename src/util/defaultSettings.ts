@@ -16,4 +16,6 @@ export const defaultSettings = {
     keyBind23: 'l',
     keyReset: 'r',
     keyUndo: 'z',
+    keyIncrementDisks: '+',
+    keyDecrementDisks: '-',
 };

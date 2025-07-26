@@ -11,7 +11,7 @@ import {getHighScore, setHighScore} from '../util/highScore';
 import {Info} from './Info';
 import {Moves, Replay, Settings} from '../util/types';
 import {isWinning} from '../util/isWinning';
-import {MAX_DISK_HEIGHT, MIN_DISK_WIDTH_INCREMENT, TOP_DISK_MARGIN} from '../util/constants';
+import {MAX_DISK_HEIGHT, MAX_DISKS, MIN_DISK_WIDTH_INCREMENT, MIN_DISKS, TOP_DISK_MARGIN} from '../util/constants';
 import { ReplaysMenu } from './ReplaysMenu';
 import { useEventListener, useLocalStorage } from '../util/customHooks';
 import { abortableSleep } from '../util/abortableSleep';
@@ -126,6 +126,8 @@ export const Game = () => {
 
     const stacksRef = useRef<HTMLDivElement>(null);
 
+    const settingsDisabled = game.state === "gameplay" || game.state === "replay";
+
     const resetGame = useCallback((newSettings: Settings) => {
         if (game.state === "replay") game.abortController.abort();
         setStacks(initialStacks(newSettings));
@@ -169,20 +171,26 @@ export const Game = () => {
         const key = event.key.toLowerCase();
         if (key === settings.keyReset) {
             resetGame(settings);
-            return;
-        }
-        if (key === settings.keyUndo) {
+        } else if (key === settings.keyUndo) {
             undo();
-            return;
+        } else if (key === settings.keyIncrementDisks || key === settings.keyDecrementDisks) {
+            if (!settingsDisabled) {
+                let disks = settings.disks + (key === settings.keyIncrementDisks ? 1 : -1);
+                if (disks < MIN_DISKS) disks = MIN_DISKS;
+                if (disks > MAX_DISKS) disks = MAX_DISKS;
+                const newSettings = {...settings, disks};
+                setSettings(newSettings);
+                resetGame(newSettings);
+            }
+        } else if (game.state === "ready" || game.state === "gameplay") {
+            const newStacks = [...stacks];
+            const newGame = executeMoveKey({...game}, newStacks, settings, key);
+            setGame(newGame);
+            setStacks(newStacks);
+    
+            if (newGame.state === "gameplay") checkForWin(newGame.moves);
         }
 
-        if (game.state === "finished") return;
-        const newStacks = [...stacks];
-        const newGame = executeMoveKey({...game}, newStacks, settings, key);
-        setGame(newGame);
-        setStacks(newStacks);
-
-        if (newGame.state === "gameplay") checkForWin(newGame.moves);
     });
 
     const getWidth = (size: number) => {
@@ -266,7 +274,7 @@ export const Game = () => {
                 setSettings={setSettings}
                 resetSettings={resetSettings}
                 resetGame={resetGame}
-                disabled={game.state === "gameplay" || game.state === "replay"}
+                disabled={settingsDisabled}
                 close={() => setSettingsShown(false)} />}
             {replaysShown && <ReplaysMenu replays={replays} clickable={game.state === "replay" ? { "replayInProgress": true, stopReplay } : { "replayInProgress": false, startReplay }} />}
             {game.state === "finished" && <Win moves={game.moves} settings={settings} seconds={game.seconds} timeDifference={game.timeDifference} />}

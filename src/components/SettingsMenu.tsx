@@ -8,6 +8,7 @@ import {Menu} from './Menu';
 import {KeyBind} from './KeyBind';
 import {Settings} from '../util/types';
 import {getHighScore} from '../util/highScore';
+import { MAX_DISKS, MIN_DISKS } from '../util/constants';
 
 interface Props {
     settings: Settings;
@@ -25,7 +26,7 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, d
             <table>
                 <tbody>
                     <tr>
-                        <td><SettingsSlider disabled={disabled} settings={settings} setSettings={setSettings} settingsKey="disks" resetGame={resetGame} min={1} max={30} /></td>
+                        <td><SettingsSlider disabled={disabled} settings={settings} setSettings={setSettings} settingsKey="disks" resetGame={resetGame} min={MIN_DISKS} max={MAX_DISKS} /></td>
                         <td>Disks ({settings.disks})</td>
                     </tr>
                     <tr>
@@ -81,6 +82,14 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, d
                     <tr>
                         <RightAligned><KeyBind value={settings.keyReset} onChange={value => setSettings({...settings, keyReset: value})} /></RightAligned>
                         <td>Reset shortcut</td>
+                    </tr>
+                    <tr>
+                        <RightAligned><KeyBind value={settings.keyIncrementDisks} onChange={value => setSettings({...settings, keyIncrementDisks: value})} /></RightAligned>
+                        <td>Increase disks by 1</td>
+                    </tr>
+                    <tr>
+                        <RightAligned><KeyBind value={settings.keyDecrementDisks} onChange={value => setSettings({...settings, keyDecrementDisks: value})} /></RightAligned>
+                        <td>Decrease disks by 1</td>
                     </tr>
                     <tr>
                         <RightAligned><KeyBind value={settings.keyBind12} onChange={value => setSettings({...settings, keyBind12: value})} /></RightAligned>
