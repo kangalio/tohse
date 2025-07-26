@@ -57,26 +57,32 @@ function undoInPlace(stacks: number[][], game: GameState) {
 }
 
 function executeMoveKey(
-    game: Extract<GameState, {state: "gameplay"}>,
+    game: GameState,
     stacks: number[][],
     settings: Settings,
     key: string,
-) {
+): GameState {
     const now = Date.now();
-    if (game.moves.length === 0) game.startTime = now;
-    const moveTime = (now - game.startTime) / 1000;
+    const moveTime = game.state === "gameplay" ? (now - game.startTime) / 1000 : 0;
 
-    const game2 = game;
+    const startGameIfNotAlready = () => game.state === "gameplay" ? game : {
+        state: "gameplay",
+        holding: null,
+        moves: [],
+        startTime: Date.now(),
+    } satisfies GameState;
+
     const move = (from: number, to: number) => {
         if (from >= settings.stacks || to >= settings.stacks) return;
         if (!settings.illegalMoves && stacks[to][0] < stacks[from][0]) return;
         const disk = stacks[from].shift();
         if (!disk) return;
 
-        game2.moves.push({from, to, time: moveTime});
+        game = startGameIfNotAlready();
+        game.moves.push({from, to, time: moveTime});
         stacks[to].unshift(disk);
     }
-    if (!game.holding) {
+    if (game.state !== "gameplay" || !game.holding) {
         if (key === settings.keyBind21) move(1, 0);
         else if (key === settings.keyBind12) move(0, 1);
         else if (key === settings.keyBind13) move(0, 2);
@@ -85,10 +91,10 @@ function executeMoveKey(
         else if (key === settings.keyBind23) move(1, 2);
     }
     const numberKey = Number(key) - 1;
-    if (isNaN(numberKey)) return;
-    if (numberKey < 0 || numberKey >= stacks.length) return;
-    if (game.holding) {
-        if (!settings.illegalMoves && stacks[numberKey][0] < game.holding.width) return;
+    if (isNaN(numberKey)) return game;
+    if (numberKey < 0 || numberKey >= stacks.length) return game;
+    if (game.state === "gameplay" && game.holding) {
+        if (!settings.illegalMoves && stacks[numberKey][0] < game.holding.width) return game;
 
         stacks[numberKey].unshift(game.holding.width);
         if (game.holding.from !== numberKey) {
@@ -96,6 +102,7 @@ function executeMoveKey(
         }
         game.holding = null;
     } else {
+        game = startGameIfNotAlready();
         game.holding = stacks[numberKey][0] ? {
             width: stacks[numberKey][0],
             from: numberKey,
@@ -104,6 +111,8 @@ function executeMoveKey(
 
         stacks[numberKey].shift();
     }
+
+    return game;
 }
 
 export const Game = () => {
@@ -168,18 +177,12 @@ export const Game = () => {
         }
 
         if (game.state === "finished") return;
-        const newGame: GameState = game.state !== "gameplay" ? {
-            state: "gameplay",
-            holding: null,
-            moves: [],
-            startTime: Date.now(),
-        } : {...game};
         const newStacks = [...stacks];
-        executeMoveKey(newGame, newStacks, settings, key);
+        const newGame = executeMoveKey({...game}, newStacks, settings, key);
         setGame(newGame);
         setStacks(newStacks);
 
-        checkForWin(newGame.moves);
+        if (newGame.state === "gameplay") checkForWin(newGame.moves);
     });
 
     const getWidth = (size: number) => {
