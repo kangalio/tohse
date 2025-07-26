@@ -209,14 +209,13 @@ export const Game = () => {
         const newGame: GameState = { state: "replay", moves: [], startTime: Date.now(), abortController };
         setGame(newGame);
         (async () => {
-            let lastMoveTime = 0;
             for (const move of replay.moves) {
-                await abortableSleep(move.time - lastMoveTime, newGame.abortController.signal);
+                const currentTime = (Date.now() - newGame.startTime) / 1000;
+                await abortableSleep(move.time - currentTime, newGame.abortController.signal);
                 if (newGame.abortController.signal.aborted) {
                     resetGame(settings);
                     return;
                 }
-                lastMoveTime = move.time;
 
                 newStacks = [...newStacks];
                 newStacks[move.to].unshift(newStacks[move.from].shift()!);
