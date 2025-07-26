@@ -68,7 +68,7 @@ export const Game = () => {
         setStacks(newStacks);
     }, [stacks, holding, moves]);
 
-    const checkForWin = () => {
+    const checkForWin = (newMoves: Moves) => {
         if (isWinning(stacks, settings)) {
             const now = Date.now();
             const score = now - (startTime ?? now);
@@ -79,7 +79,7 @@ export const Game = () => {
                     date: new Date(now).toISOString().slice(0, 10),
                     time: new Date(now).toISOString().slice(11, 19),
                     settings: settings,
-                    moves: moves,
+                    moves: newMoves,
                 },
                 ...prev,
             ]);
@@ -113,10 +113,11 @@ export const Game = () => {
             const disk = newStacks[from].shift();
             if (!disk) return;
 
-            setMoves(moves.concat([{from, to, time: moveTime}]));
+            const newMoves = moves.concat([{from, to, time: moveTime}]);
+            setMoves(newMoves);
             newStacks[to].unshift(disk);
             setStacks(newStacks);
-            checkForWin();
+            checkForWin(newMoves);
         }
         if (!holding) {
             if (key === settings.keyBind21) move(1, 0);
@@ -137,8 +138,11 @@ export const Game = () => {
             setStacks(newStacks);
             setHolding(null);
 
-            if (holding.from !== numberKey) setMoves(moves.concat([{from: holding.from, to: numberKey, time: moveTime}]));
-            checkForWin();
+            if (holding.from !== numberKey) {
+                const newMoves = moves.concat([{from: holding.from, to: numberKey, time: moveTime}]);
+                setMoves(newMoves);
+                checkForWin(newMoves);
+            }
         } else {
             setHolding(stacks[numberKey][0] ? {
                 width: stacks[numberKey][0],
@@ -163,6 +167,18 @@ export const Game = () => {
     const startReplay = (replay: Replay) => {
         setSettings(replay.settings);
         resetGame(replay.settings);
+        (async () => {
+            let lastMoveTime = 0;
+            for (const move of replay.moves) {
+                const sleepMs = (move.time - lastMoveTime) * 1000;
+                lastMoveTime = move.time;
+                await new Promise(resolve => setTimeout(resolve, sleepMs));
+
+                const newStacks = [...stacks];
+                newStacks[move.to].unshift(newStacks[move.from].shift()!);
+                setStacks(newStacks);
+            }
+        })();
     };
 
     const getColor = (size: number) => size / settings.disks;
