@@ -2,6 +2,7 @@ import styled from 'styled-components';
 import {Button} from './Button';
 import {Menu} from './Menu';
 import { Replay } from '../util/types';
+import { calculateStats } from '../util/calculateStats';
 
 interface Props {
     replays: Array<Replay>;
@@ -23,7 +24,6 @@ export const ReplaysMenu = ({replays, clickable}: Props) => {
                         <th>Date</th>
                         <th>Moves</th>
                         <th>Time</th>
-                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,6 +45,9 @@ export const ReplaysMenu = ({replays, clickable}: Props) => {
                                 {clickable.replayInProgress ?
                                     <Button onClick={() => clickable.stopReplay()}>Stop</Button> :
                                     <Button onClick={() => clickable.startReplay(replay)}>Replay</Button>}
+                            </td>
+                            <td>
+                                <Button onClick={() => alert(calculateStats(replay))}>?</Button>
                             </td>
                         </tr>
                     ))}

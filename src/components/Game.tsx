@@ -15,13 +15,7 @@ import {MAX_DISK_HEIGHT, MAX_DISKS, MIN_DISK_WIDTH_INCREMENT, MIN_DISKS, TOP_DIS
 import { ReplaysMenu } from './ReplaysMenu';
 import { useEventListener, useLocalStorage } from '../util/customHooks';
 import { abortableSleep } from '../util/abortableSleep';
-
-const initialStacks = (settings: Settings) => {
-    const stacks = [];
-    for (let i = 0; i < settings.stacks; ++i) stacks.push([]);
-    stacks[Math.min(settings.startStack, settings.stacks) - 1] = Array.from({length: settings.disks}, (_, i) => i + 1);
-    return stacks;
-}
+import { initialStacks } from '../util/initialStacks';
 
 type GameState = {
     state: "ready",
