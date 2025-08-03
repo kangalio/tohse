@@ -176,6 +176,12 @@ export const Game = () => {
                 setSettings(newSettings);
                 resetGame(newSettings);
             }
+        } else if (key === settings.keyToggleBlindfold) {
+            if (!settingsDisabled) {
+                const newSettings = {...settings, blindfold: !settings.blindfold};
+                setSettings(newSettings);
+                resetGame(newSettings);
+            }
         } else if (game.state === "ready" || game.state === "gameplay") {
             const newStacks = [...stacks];
             const newGame = executeMoveKey({...game}, newStacks, settings, key);

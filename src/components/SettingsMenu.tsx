@@ -92,6 +92,10 @@ export const SettingsMenu = ({settings, setSettings, resetGame, resetSettings, d
                         <td>Decrease disks by 1</td>
                     </tr>
                     <tr>
+                        <RightAligned><KeyBind value={settings.keyToggleBlindfold} onChange={value => setSettings({...settings, keyToggleBlindfold: value})} /></RightAligned>
+                        <td>Toggle blindfold mode</td>
+                    </tr>
+                    <tr>
                         <RightAligned><KeyBind value={settings.keyBind12} onChange={value => setSettings({...settings, keyBind12: value})} /></RightAligned>
                         <td>Super fast move 1 &rarr; 2</td>
                     </tr>

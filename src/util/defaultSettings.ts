@@ -18,4 +18,5 @@ export const defaultSettings = {
     keyUndo: 'z',
     keyIncrementDisks: '+',
     keyDecrementDisks: '-',
+    keyToggleBlindfold: 'b',
 };
